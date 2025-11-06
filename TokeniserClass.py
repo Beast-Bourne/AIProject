@@ -13,7 +13,8 @@ class Tokeniser:
             vocab += spliter
 
         # sorts the vocab array alphabetically then removes all duplicate entries
-        vocab = sorted(set(vocab))
+        vocab = sorted(list(set(vocab)))
+        vocab.extend(["<|unknown|>", "<|endOfText|>"])
         vocab = {token:integer for integer, token in enumerate(vocab)}
         
         # pass a string in to Tokenise[] to get a token (a unique integer identifier)
@@ -25,6 +26,7 @@ class Tokeniser:
     def TokeniseText(self, text):
         spliter = re.split(r'([,.:;?_!"()\']|--|\s)', text)
         spliter = [item for item in spliter if item.strip()]
+        spliter = [item if item in self.Tokenise else "<|unknown|>" for item in spliter]
         tokens = [self.Tokenise[s] for s in spliter]
         return tokens
     
