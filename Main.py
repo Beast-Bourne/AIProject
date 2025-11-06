@@ -35,17 +35,27 @@ for i in range (len(train['instruction'])-1):
 #print(decoded)
 
 # testing the data loader for better tokenising
-#dataloader = GPTDataLoaderClass.CreateDataLoader(texter, batchSize=8, maxLength=4, stride=4, shuffleData=False)
-#dataIter = iter(dataloader)
-#inputs, targets = next(dataIter)
+dataloader = GPTDataLoaderClass.CreateDataLoader(texter, batchSize=8, maxLength=4, stride=4, shuffleData=False)
+dataIter = iter(dataloader)
+inputs, targets = next(dataIter)
 #print("Inputs:\n", inputs)
 #print("\nTargets:\n", targets)
 
 #testing making an embedding layer
-inputIds = torch.tensor([2,3,5,1])
-vocabSize = 6
-outputDimensions = 3
-
+vocabSize = tik.get_encoding("gpt2").n_vocab
+outputDimensions = 256
 torch.manual_seed(123)
 embeddingLayer = torch.nn.Embedding(vocabSize, outputDimensions)
-print(embeddingLayer(inputIds))
+
+# token embeddings give information about the token itself
+tokenEmbeddings = embeddingLayer(inputs)
+
+contextLength = 4
+positionEmbeddingLayer = torch.nn.Embedding(contextLength, outputDimensions)
+
+#position embedding gives information about the position of the token in its string
+positionEmbeddings = positionEmbeddingLayer(torch.arange(contextLength))
+
+# combinging the position and token embeddings gives all the information necessary for the GPT model to use
+inputEmbeddings = tokenEmbeddings + positionEmbeddings
+print(inputEmbeddings.shape)
