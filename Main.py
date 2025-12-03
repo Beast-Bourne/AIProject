@@ -12,16 +12,31 @@ import GPTDataLoaderClass
 
 # main body
 train = pd.read_csv('./Data/CustomerServiceDataSet.csv')
-tokeniserRef = Tokeniser(train)
 
 texter = ""
 
 for i in range (len(train['instruction'])-1):
     texter += (train['instruction'][i] + " ")
 
-#print(texter)
+# finding the shortest instruction in the dataset
+# shortest = 0
+# index = 0
+# for i in range (len(train['instruction'])-1):
+#     #if (train['intent'][i] != "cancel_order"): continue
+
+#     text = train['instruction'][i]
+#     spliter = re.split(r'([,.:;?_!"()\']|--|\s)', text)
+#     spliter = [item for item in spliter if item.strip()]
+#     if (len(spliter) > shortest): 
+#         shortest = len(spliter)
+#         index = i
+
+# print(index)
+# print(train['instruction'][index])
+# print(train['response'][index])
 
 # testing my tokeniser class
+#tokeniserRef = Tokeniser(train)
 #test = tokeniserRef.TokeniseText(texter)
 #print(test)
 #test2 = tokeniserRef.DetokeniseArray(test)
@@ -34,6 +49,7 @@ for i in range (len(train['instruction'])-1):
 #decoded = OtherTokeniser.decode(coded)
 #print(decoded)
 
+######################################################################################################################## ctrl + / to mass comment out
 # testing the data loader for better tokenising
 dataloader = GPTDataLoaderClass.CreateDataLoader(texter, batchSize=8, maxLength=4, stride=4, shuffleData=False)
 dataIter = iter(dataloader)
