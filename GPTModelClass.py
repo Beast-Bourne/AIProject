@@ -3,11 +3,11 @@ import torch.nn as nn
 import SelfAttentionClass as attention
 
 GPT_CONFIG = {
-    "vocabSize": 50257,
+    "vocabSize": 50257, # this is the number of tokens in the GPT-2 tokenizer
     "contextLength": 1024,
-    "embeddingDim": 768,
+    "embeddingDim": 768, # this is the number of dimensions in the token embeddings
     "numHeads": 12,
-    "numLayers": 12,
+    "numLayers": 12, # this number is how many times the transformer block is repeated
     "qkvBias": False,
 }
 
