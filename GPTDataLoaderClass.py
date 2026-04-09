@@ -23,6 +23,9 @@ class GPTDataSet(Dataset):
     def __getitem__(self, idx):
         return self.inputIds[idx], self.targetIds[idx]
     
+# Batch size is the number of input-target pairs that will be processed together in one pass
+# Max length is the length of the input and target sequences
+# Stride is the number of tokens the sliding window moves forward to create the next input-target pair
 def CreateDataLoader(text, batchSize=4, maxLength=256, stride=128, shuffleData=True, dropLast=True, numOfWorkers=0):
     tokenizer= tik.get_encoding("gpt2")
 

@@ -9,7 +9,7 @@ class Tokeniser:
         for i in range(len(dataset)):
             text = dataset['instruction'][i]
             spliter = re.split(r'([,.:;?_!"()\']|--|\s)', text)
-            spliter = [item for item in spliter if item.strip()]
+            spliter = [item for item in spliter if item.strip()] # strips the white space characters
             vocab += spliter
 
         # sorts the vocab array alphabetically then removes all duplicate entries
