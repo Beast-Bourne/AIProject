@@ -10,6 +10,7 @@ import tiktoken as tik
 from TokeniserClass import Tokeniser
 import GPTDataLoaderClass
 from SelfAttentionClass import SelfAttention
+from SelfAttentionClass import MultiHeadAttentionWrapper
 
 # main body
 train = pd.read_csv('./Data/CustomerServiceDataSet.csv')
@@ -23,7 +24,7 @@ for i in range (len(train['instruction'])-1):
 slidingWindowLength = 4
 
 # testing the data loader for better tokenising
-dataloader = GPTDataLoaderClass.CreateDataLoader(texter, batchSize=1, maxLength=slidingWindowLength, stride=3, shuffleData=False)
+dataloader = GPTDataLoaderClass.CreateDataLoader(texter, batchSize=2, maxLength=slidingWindowLength, stride=3, shuffleData=False)
 dataIter = iter(dataloader)
 inputs, targets = next(dataIter)
 
@@ -98,5 +99,17 @@ print(queryContextVector)
 
 ######################################################################################################################## generalise for all input words
 
-thing1 = SelfAttention(wordShape, weightShape)
-print(thing1(inputEmbeddings[0]))
+print(inputEmbeddings)
+
+contLength = inputEmbeddings.shape[1]
+thing1 = SelfAttention(wordShape, weightShape, contLength)
+#print(thing1(inputEmbeddings))
+
+
+torch.manual_seed(123)
+contextLength = inputEmbeddings.shape[1]
+d_in = inputEmbeddings.shape[2]
+d_out = 4
+mha = MultiHeadAttentionWrapper(d_in, d_out, contextLength, 2)
+print(mha(inputEmbeddings))
+print(mha(inputEmbeddings).shape)
