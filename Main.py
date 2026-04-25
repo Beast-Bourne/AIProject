@@ -1,136 +1,47 @@
 # Library imports
+import os
 import numpy as np
 import pandas as pd
 import re
 import tensorflow as tf
 import torch
 import tiktoken as tik
-
-# My class imports
-from TokeniserClass import Tokeniser
-import GPTDataLoaderClass
-from SelfAttentionClass import SelfAttention
-from SelfAttentionClass import MultiHeadAttentionWrapper
-import GPTModelClass as GPT
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 
-# # ctrl + / to mass comment out
-# ######################################################################################################################## token embedding testing
-# slidingWindowLength = 4
+# My class imports
+import GPTDataLoaderClass
+import GPTModelClass as GPT
+from TextGenerationClass import TextGeneration
+from ModelTrainingClass import ModelTrainer
 
-# # testing the data loader for better tokenising
-# dataloader = GPTDataLoaderClass.CreateDataLoader(texter, batchSize=2, maxLength=slidingWindowLength, stride=3, shuffleData=False)
-# dataIter = iter(dataloader)
-# inputs, targets = next(dataIter)
-
-# # testing making an embedding layer
-# vocabSize = tik.get_encoding("gpt2").n_vocab
-# outputDimensions = 3
-# torch.manual_seed(123)
-# embeddingLayer = torch.nn.Embedding(vocabSize, outputDimensions)
-
-# # token embeddings give information about the token itself
-# tokenEmbeddings = embeddingLayer(inputs)
-
-# positionEmbeddingLayer = torch.nn.Embedding(slidingWindowLength, outputDimensions)
-
-# #position embedding gives information about the position of the token in its string
-# positionEmbeddings = positionEmbeddingLayer(torch.arange(slidingWindowLength))
-# inputEmbeddings = tokenEmbeddings + positionEmbeddings
-
-
-######################################################################################################################## Testing stuff
-
-# txt1 = "Every effort moves you"
-# tokeniser = tik.get_encoding("gpt2")
-# batch = []
-
-# torch.manual_seed(123)
-# model = GPT.GPTModel(GPT.GPT_CONFIG)
-# model.eval()
-
-def TextToTokenIds(text, tokeniser):
-    encoded = tokeniser.encode(text, allowed_special={"<|endoftext|>"})
-    encodedTensor = torch.tensor(encoded).unsqueeze(0)
-    return encodedTensor
-
-
-#batch = TextToTokenIds(txt1, tokeniser)
-
-def TokenIdsToText(tokenIds, tokeniser):
-    flat = tokenIds.squeeze(0).tolist()
-    return tokeniser.decode(flat)
-
-
-def GenerateTextTest(model, inputText, maxNewTokens, contextSize, temperature=0.0, topK=None, eosTokenId=None):
-    for _ in range(maxNewTokens):
-        inputCondition = inputText[:, -contextSize:]
-
-        with torch.no_grad():
-            logits = model(inputCondition)
-
-        logits = logits[:, -1, :]
-
-        if topK is not None:
-            topLogits, topPos = torch.topk(logits, topK)
-            newLogits = torch.where(condition=logits<topLogits[:,-1], input=torch.tensor(float("-inf")), other=logits)
-        
-        if temperature > 0.0:
-            logits = logits / temperature
-            probs = torch.softmax(logits, dim=-1)
-            nextToken = torch.multinomial(probs, num_samples=1)
-        else:
-            nextToken = torch.argmax(logits, dim=-1, keepdim=True)
-
-        # end of sequence token tells the model when to stop generating text
-        if nextToken == eosTokenId:
-            break
-
-        inputText = torch.cat((inputText, nextToken), dim=1)
-
-    return inputText
-
-#out = GenerateTextTest(model, TextToTokenIds(txt1, tokeniser), 10, 1024)
-
-###################################################################################### entropy loss stuff
-# inputs = torch.tensor([[16833, 3626, 6100], [40, 1107, 588]])
-# targets = torch.tensor([[3626, 6100, 345], [1107, 588, 11311]])
-
-# with torch.no_grad():
-#     logits = model(inputs)
-
-# probas = torch.softmax(logits, dim=-1)
-# tokenIds = torch.argmax(probas, dim=-1, keepdim=True)
-
-# textIdx = 0
-# targetProbas1 = probas[textIdx, [0, 1, 2], targets[textIdx]]
-
-# textIdx = 1
-# targetProbas2 = probas[textIdx, [0, 1, 2], targets[textIdx]]
-
-# logProbas = torch.log(torch.cat((targetProbas1, targetProbas2)))
-
-# flatLogits =  logits.flatten(0, 1)
-# flatTargets = targets.flatten()
-# thing = torch.nn.functional.cross_entropy(flatLogits, flatTargets)
-
-######################################################################################
-
+######################################################### Initialisation of needed parameters and objects
 torch.manual_seed(123)
-tokeniser = tik.get_encoding("gpt2")
+tokeniser = tik.get_encoding("gpt2") # the tokeniser from the tiktoken library
+Trainer = ModelTrainer() # my model training class
 
-train = pd.read_csv('./Data/CustomerServiceDataSet.csv')
+model = GPT.GPTModel(GPT.GPT_CONFIG) # initialise the GPT model using the configuration defined in my GPTModelClass.py file
+
+# load the model's trained weights if they exist in the given directory
+if os.path.exists("./GPTModel.pth"):
+    model.load_state_dict(torch.load("./GPTModel.pth"))
+    print("Loaded model weights from GPTModel.pth")
+else:
+    print("No saved model weights found, starting with a new model")
+
+optimiser = torch.optim.AdamW(model.parameters(), lr=0.0004, weight_decay=0.1) # AdamW optimiser from PyTorch with a learning rate of 0.0004 and weight decay of 0.1
+
+train = pd.read_csv('./Data/CustomerServiceDataSet.csv') # read in the dataset
+
+
+######################################################### Data Preparation and DataLoader Creation
 texter = ""
-
-print(train['instruction'][3])
-      
 numToGet = 500 # len(train['instruction'])-1
 for i in range (numToGet):
     texter += (train['instruction'][i] + " ")
 
-charTotal = len(texter) # 1286828
-tokenTotal = len(tokeniser.encode(texter)) # 271388
+charTotal = len(texter) # 1286828 for full dataset
+tokenTotal = len(tokeniser.encode(texter)) # 271388 for full dataset
 
 trainRatio = 0.9
 splitIdx = int(trainRatio * charTotal)
@@ -140,101 +51,11 @@ validationData = texter[splitIdx:]
 trainDataloader = GPTDataLoaderClass.CreateDataLoader(trainData, batchSize=2, maxLength=256, stride=256, dropLast=True, shuffleData=True)
 valDataLoader = GPTDataLoaderClass.CreateDataLoader(validationData, batchSize=2, maxLength=256, stride=256, dropLast=False, shuffleData=False)
 
-trainTokens = 0
-for inBatch, targetBatch in trainDataloader:
-    trainTokens += inBatch.numel()
 
-valTokens = 0
-for inBatch, targetBatch in valDataLoader:
-    valTokens += inBatch.numel()
-
-def calcLossBatch(inputBatch, targetBatch, model):
-    logits = model(inputBatch)
-    loss = torch.nn.functional.cross_entropy(logits.flatten(0, 1), targetBatch.flatten())
-    return loss
-
-def calcLossLoader(dataLoader, model, numBatches=None):
-    totalLoss = 0
-
-    if (len(dataLoader) == 0):
-        return float("nan")
-    elif numBatches is None:
-        numBatches = len(dataLoader)
-    else:
-        numBatches = min(numBatches, len(dataLoader))
-
-
-    for i, (inputBatch, targetBatch) in enumerate(dataLoader):
-        if i < numBatches:
-            loss = calcLossBatch(inputBatch, targetBatch, model)
-            totalLoss += loss.item()
-        else:
-            break
-
-    return totalLoss / numBatches
-
-# torch.manual_seed(123)
-
-# with torch.no_grad():
-#     trainLoss = calcLossLoader(trainDataloader, model)
-#     valLoss = calcLossLoader(valDataLoader, model)
-
-# print(trainLoss)
-# print(valLoss)
-# print(torch.exp(torch.tensor(trainLoss)))
-
-def EvaluateModel(model, trainLoader, valLoader, evalIter):
-    model.eval()
-    with torch.no_grad():
-        trainLoss = calcLossLoader(trainLoader, model, numBatches=evalIter)
-        valLoss = calcLossLoader(valLoader, model, numBatches=evalIter)
-    model.train()
-    return trainLoss, valLoss
-
-def GenerateAndPrintSample(model, tokeniser, startContext):
-    model.eval()
-    contextSize = model.positionEmbeddings.weight.shape[0]
-    encoded = TextToTokenIds(startContext, tokeniser)
-
-    with torch.no_grad():
-        generatedIds = GenerateTextTest(model, encoded, 50, contextSize)
-    
-    decodedText = TokenIdsToText(generatedIds, tokeniser)
-    print(f"Sample Generated Text: {decodedText}")
-    model.train()
-
-def TrainModel(model, trainLoader, valLoader, optimiser, numEpochs, evalFreq, evalIter, startContext, tokeniser):
-    trainLosses, valLosses, seenTokenTracker = [], [], []
-    seenTokens, globalStep = 0 , -1
-
-    for epoch in range(numEpochs):
-        model.train()
-
-        for inputBatch, targetBatch in trainLoader:
-            optimiser.zero_grad()
-            loss = calcLossBatch(inputBatch, targetBatch, model)
-            loss.backward()
-            optimiser.step()
-            seenTokens += inputBatch.numel()
-            globalStep += 1
-
-            if globalStep % evalFreq == 0:
-                trainLoss, valLoss = EvaluateModel(model, trainLoader, valLoader, evalIter)
-                trainLosses.append(trainLoss)
-                valLosses.append(valLoss)
-                seenTokenTracker.append(seenTokens)
-                print(f"Epoch {epoch+1}, Step {globalStep:06d}, Train Loss: {trainLoss:.3f}, Val Loss: {valLoss:.3f}")
-        
-        #GenerateAndPrintSample(model, tokeniser, startContext)
-
-    return trainLosses, valLosses, seenTokenTracker
-
-model = GPT.GPTModel(GPT.GPT_CONFIG)
-model.load_state_dict(torch.load("./GPTModel.pth"))
-optimiser = torch.optim.AdamW(model.parameters(), lr=0.0004, weight_decay=0.1)
+######################################################### Training the Model and Plotting Losses
 epochNum = 10
 
-trainLosses, valLosses, seenTokenTracker = TrainModel(model, trainDataloader, valDataLoader, optimiser,
+trainLosses, valLosses, seenTokenTracker = Trainer.TrainModel(model, trainDataloader, valDataLoader, optimiser,
                                                           numEpochs=epochNum, evalFreq=5, evalIter=5, 
                                                           startContext="I need to cancel", tokeniser=tokeniser)
 
@@ -256,8 +77,9 @@ def PlotLosses(epochsSeen, tokensSeen, trainLosses, valLosses):
     plt.show()
 
 epochsTensor = torch.linspace(0, epochNum, len(trainLosses))
+print("Done Training")
+
 PlotLosses(epochsTensor, seenTokenTracker, trainLosses, valLosses)
 
 torch.save(model.state_dict(), "./GPTModel.pth")
-
-print("Done")
+print("Done and saved training")
