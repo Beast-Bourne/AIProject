@@ -63,7 +63,7 @@ def TokenIdsToText(tokenIds, tokeniser):
     return tokeniser.decode(flat)
 
 
-def GenerateTextTest(model, inputText, maxNewTokens, contextSize):
+def GenerateTextTest(model, inputText, maxNewTokens, contextSize, temperature=0.0, topK=None, eosTokenId=None):
     for _ in range(maxNewTokens):
         inputCondition = inputText[:, -contextSize:]
 
@@ -71,8 +71,21 @@ def GenerateTextTest(model, inputText, maxNewTokens, contextSize):
             logits = model(inputCondition)
 
         logits = logits[:, -1, :]
-        probs = torch.softmax(logits, dim=-1)
-        nextToken = torch.argmax(probs, dim=-1, keepdim=True)
+
+        if topK is not None:
+            topLogits, topPos = torch.topk(logits, topK)
+            newLogits = torch.where(condition=logits<topLogits[:,-1], input=torch.tensor(float("-inf")), other=logits)
+        
+        if temperature > 0.0:
+            logits = logits / temperature
+            probs = torch.softmax(logits, dim=-1)
+            nextToken = torch.multinomial(probs, num_samples=1)
+        else:
+            nextToken = torch.argmax(logits, dim=-1, keepdim=True)
+
+        # end of sequence token tells the model when to stop generating text
+        if nextToken == eosTokenId:
+            break
 
         inputText = torch.cat((inputText, nextToken), dim=1)
 
@@ -184,7 +197,7 @@ def GenerateAndPrintSample(model, tokeniser, startContext):
     encoded = TextToTokenIds(startContext, tokeniser)
 
     with torch.no_grad():
-        generatedIds = GenerateTextTest(model, encoded, maxNewTokens=50, contextSize=contextSize)
+        generatedIds = GenerateTextTest(model, encoded, 50, contextSize)
     
     decodedText = TokenIdsToText(generatedIds, tokeniser)
     print(f"Sample Generated Text: {decodedText}")
@@ -217,6 +230,7 @@ def TrainModel(model, trainLoader, valLoader, optimiser, numEpochs, evalFreq, ev
     return trainLosses, valLosses, seenTokenTracker
 
 model = GPT.GPTModel(GPT.GPT_CONFIG)
+model.load_state_dict(torch.load("./GPTModel.pth"))
 optimiser = torch.optim.AdamW(model.parameters(), lr=0.0004, weight_decay=0.1)
 epochNum = 10
 
@@ -243,4 +257,7 @@ def PlotLosses(epochsSeen, tokensSeen, trainLosses, valLosses):
 
 epochsTensor = torch.linspace(0, epochNum, len(trainLosses))
 PlotLosses(epochsTensor, seenTokenTracker, trainLosses, valLosses)
+
+torch.save(model.state_dict(), "./GPTModel.pth")
+
 print("Done")
