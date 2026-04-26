@@ -2,18 +2,15 @@
 import os
 import numpy as np
 import pandas as pd
-import re
 import tensorflow as tf
 import torch
 import tiktoken as tik
-import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
 
 # My class imports
 import GPTDataLoaderClass
 import GPTModelClass as GPT
-from TextGenerationClass import TextGeneration
 from ModelTrainingClass import ModelTrainer
+from TrainingDataPrepClass import TrainingDataPreper
 
 ######################################################### Initialisation of needed parameters and objects
 torch.manual_seed(123)
@@ -36,9 +33,11 @@ train = pd.read_csv('./Data/CustomerServiceDataSet.csv') # read in the dataset
 
 ######################################################### Data Preparation and DataLoader Creation
 texter = ""
-numToGet = 500 # len(train['instruction'])-1
+numToGet = len(train['instruction'])-1
+
 for i in range (numToGet):
-    texter += (train['instruction'][i] + " ")
+    if train["intent"][i] == "cancel_order":
+        texter += (train['instruction'][i] + " ")
 
 charTotal = len(texter) # 1286828 for full dataset
 tokenTotal = len(tokeniser.encode(texter)) # 271388 for full dataset
@@ -53,33 +52,43 @@ valDataLoader = GPTDataLoaderClass.CreateDataLoader(validationData, batchSize=2,
 
 
 ######################################################### Training the Model and Plotting Losses
-epochNum = 10
+# epochNum = 10
 
-trainLosses, valLosses, seenTokenTracker = Trainer.TrainModel(model, trainDataloader, valDataLoader, optimiser,
-                                                          numEpochs=epochNum, evalFreq=5, evalIter=5, 
-                                                          startContext="I need to cancel", tokeniser=tokeniser)
+# trainLosses, valLosses, seenTokenTracker = Trainer.TrainModel(model, trainDataloader, valDataLoader, optimiser,
+#                                                           numEpochs=epochNum, evalFreq=5, evalIter=5, 
+#                                                           startContext="I need to cancel", tokeniser=tokeniser)
 
-def PlotLosses(epochsSeen, tokensSeen, trainLosses, valLosses):
-    fig, ax1 = plt.subplots(figsize=(5,3))
+# def PlotLosses(epochsSeen, tokensSeen, trainLosses, valLosses):
+#     fig, ax1 = plt.subplots(figsize=(5,3))
 
-    ax1.plot(epochsSeen, trainLosses, label='Training Loss', color='blue')
-    ax1.plot(epochsSeen, valLosses, linestyle="-.", label='Validation Loss', color='orange')
-    ax1.set_xlabel('Epochs')
-    ax1.set_ylabel('Loss')
-    ax1.legend(loc = "upper right")
-    ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
+#     ax1.plot(epochsSeen, trainLosses, label='Training Loss', color='blue')
+#     ax1.plot(epochsSeen, valLosses, linestyle="-.", label='Validation Loss', color='orange')
+#     ax1.set_xlabel('Epochs')
+#     ax1.set_ylabel('Loss')
+#     ax1.legend(loc = "upper right")
+#     ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
 
-    ax2 = ax1.twiny()
-    ax2.plot(tokensSeen, trainLosses, alpha=0)
-    ax2.set_xlabel("Tokens Seen")
+#     ax2 = ax1.twiny()
+#     ax2.plot(tokensSeen, trainLosses, alpha=0)
+#     ax2.set_xlabel("Tokens Seen")
 
-    fig.tight_layout()
-    plt.show()
+#     fig.tight_layout()
+#     plt.show()
 
-epochsTensor = torch.linspace(0, epochNum, len(trainLosses))
-print("Done Training")
+# epochsTensor = torch.linspace(0, epochNum, len(trainLosses))
+# print("Done Training")
 
-PlotLosses(epochsTensor, seenTokenTracker, trainLosses, valLosses)
+# PlotLosses(epochsTensor, seenTokenTracker, trainLosses, valLosses)
 
-torch.save(model.state_dict(), "./GPTModel.pth")
-print("Done and saved training")
+# torch.save(model.state_dict(), "./GPTModel.pth")
+# print("Done and saved training")
+
+
+######################################################### Testing things
+
+#print(train["intent"].value_counts())
+#print(tokeniser.decode([50256]))
+
+dataPreper = TrainingDataPreper(numSamples=500, randSeed=123)
+print(len(dataPreper.trainData["instruction"]))
+print(dataPreper.trainData["instruction"].head())

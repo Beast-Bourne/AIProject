@@ -180,3 +180,6 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 GPTModel.pth
+Data/ProcessedData/TestData.csv
+Data/ProcessedData/TrainData.csv
+Data/ProcessedData/ValidData.csv
