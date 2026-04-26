@@ -2,11 +2,12 @@ import pandas as pd
 import os
 
 class TrainingDataPreper:
-    def __init__(self, numSamples=500, randSeed=123):
+    def __init__(self, tokeniser, numSamples=500, randSeed=123):
         self.randSeed = randSeed
         self.numSamples = numSamples
-        self.allData = pd.read_csv('./Data/CustomerServiceDataSet.csv')
+        self.rawData = pd.read_csv('./Data/CustomerServiceDataSet.csv')
 
+        # if the processed data files already exist then just read the data from them
         if os.path.exists("./Data/ProcessedData/TrainData.csv") and \
            os.path.exists("./Data/ProcessedData/ValidData.csv") and \
            os.path.exists("./Data/ProcessedData/TestData.csv"):
@@ -14,19 +15,24 @@ class TrainingDataPreper:
                                                                   "./Data/ProcessedData/ValidData.csv", 
                                                                   "./Data/ProcessedData/TestData.csv")
             print("Loaded processed data from files")
-            
+        
+        # otherwise split the data and save the splits to files for future use
         else:
-            self.trainData, self.validData, self.testData = self.SplitAndSaveDataFromIntent("cancel_order", 0.7, 0.1)
+            self.trainData, self.validData, self.testData = self.SplitAndSaveDataFromIntent("cancel_order", 0.7, 0.1, tokeniser)
             os.makedirs('./Data/ProcessedData', exist_ok=True)
             self.trainData.to_csv('./Data/ProcessedData/TrainData.csv', index=None)
             self.validData.to_csv('./Data/ProcessedData/ValidData.csv', index=None)
             self.testData.to_csv('./Data/ProcessedData/TestData.csv', index=None)
             print("Processed data not found, created new splits and saved to files")
 
-    def SplitAndSaveDataFromIntent(self, Intent, trainRatio, validRatio):
-        dataSet = self.allData[self.allData["intent"] == Intent].sample(self.numSamples, random_state=self.randSeed)
+    # this function takes a random sample of data from the dataset for the given intent
+    # it shuffles and splits the data into training, validation and test sets
+    def SplitAndSaveDataFromIntent(self, Intent, trainRatio, validRatio, tokeniser):
+        dataSet = self.rawData[self.rawData["intent"] == Intent].sample(self.numSamples, random_state=self.randSeed)
 
         shuffledData = dataSet.sample(frac=1, random_state=self.randSeed).reset_index(drop=True)
+        shuffledData = self.TokeniseData(shuffledData, tokeniser)
+
 
         trainEnd = int(len(shuffledData) * trainRatio)
         validEnd = trainEnd + int(len(shuffledData) * validRatio)
@@ -37,10 +43,19 @@ class TrainingDataPreper:
 
         return trainData, validData, testData
     
+    # this function reads the training, validation and test data from the given file paths and returns them
     def LoadDataFromFile(self, TrainPath, ValidPath, TestPath):
         trainData = pd.read_csv(TrainPath)
         validData = pd.read_csv(ValidPath)
         testData = pd.read_csv(TestPath)
 
         return trainData, validData, testData
+    
+    def TokeniseData(self, data, tokeniser):
+
+        for i in range(len(data)):
+            data["instruction"][i] = tokeniser.encode(data["instruction"][i])
+            data["response"][i] = tokeniser.encode(data["response"][i])
+
+        return data
         

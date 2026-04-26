@@ -89,6 +89,5 @@ valDataLoader = GPTDataLoaderClass.CreateDataLoader(validationData, batchSize=2,
 #print(train["intent"].value_counts())
 #print(tokeniser.decode([50256]))
 
-dataPreper = TrainingDataPreper(numSamples=500, randSeed=123)
-print(len(dataPreper.trainData["instruction"]))
-print(dataPreper.trainData["instruction"].head())
+dataPreper = TrainingDataPreper(tokeniser)
+print(dataPreper.trainData.head())
