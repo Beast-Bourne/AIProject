@@ -2,7 +2,7 @@ import pandas as pd
 import os
 
 class TrainingDataPreper:
-    def __init__(self, tokeniser, numSamples=500, randSeed=123):
+    def __init__(self, numSamples=500, randSeed=123):
         self.randSeed = randSeed
         self.numSamples = numSamples
         self.rawData = pd.read_csv('./Data/CustomerServiceDataSet.csv')
@@ -18,7 +18,7 @@ class TrainingDataPreper:
         
         # otherwise split the data and save the splits to files for future use
         else:
-            self.trainData, self.validData, self.testData = self.SplitAndSaveDataFromIntent("cancel_order", 0.7, 0.1, tokeniser)
+            self.trainData, self.validData, self.testData = self.SplitAndSaveDataFromIntent("cancel_order", 0.7, 0.1)
             os.makedirs('./Data/ProcessedData', exist_ok=True)
             self.trainData.to_csv('./Data/ProcessedData/TrainData.csv', index=None)
             self.validData.to_csv('./Data/ProcessedData/ValidData.csv', index=None)
@@ -27,19 +27,10 @@ class TrainingDataPreper:
 
     # this function takes a random sample of data from the dataset for the given intent
     # it shuffles and splits the data into training, validation and test sets
-    def SplitAndSaveDataFromIntent(self, Intent, trainRatio, validRatio, tokeniser):
+    def SplitAndSaveDataFromIntent(self, Intent, trainRatio, validRatio):
         dataSet = self.rawData[self.rawData["intent"] == Intent].sample(self.numSamples, random_state=self.randSeed)
 
         shuffledData = dataSet.sample(frac=1, random_state=self.randSeed).reset_index(drop=True)
-        shuffledData = self.TokeniseData(shuffledData, tokeniser)
-
-        # truncate all instruction texts to 32 tokens then pad all shorter than that to 32 tokens with the 'end of text' special token (50256 in the GPT-2 tokeniser)
-        # max found in the random 500 sample of 'cancel_order' intent was 14 tokens, so 32 should be sufficient to capture the full instruction text
-        shuffledData = self.TruncateAndPadData(shuffledData, "instruction", maxLength=32)
-
-        # truncate all response texts to 512 tokens then pad all shorter than that to 512 tokens with the 'end of text' special token (50256 in the GPT-2 tokeniser)
-        # max found in the random 500 sample of 'cancel_order' intent was 363 tokens, so 512 should be sufficient to capture the full response text
-        shuffledData = self.TruncateAndPadData(shuffledData, "response", maxLength=512)
 
         trainEnd = int(len(shuffledData) * trainRatio)
         validEnd = trainEnd + int(len(shuffledData) * validRatio)
@@ -57,17 +48,4 @@ class TrainingDataPreper:
         testData = pd.read_csv(TestPath)
 
         return trainData, validData, testData
-    
-    def TokeniseData(self, data, tokeniser):
-
-        for i in range(len(data)):
-            data["instruction"][i] = tokeniser.encode(data["instruction"][i])
-            data["response"][i] = tokeniser.encode(data["response"][i])
-
-        return data
-    
-    def TruncateAndPadData(self, data, label, maxLength, padToken=50256):
-        data[label] = [textTokens[:maxLength] for textTokens in data[label]]
-        data[label] = [textTokens + [padToken] * (maxLength - len(textTokens)) for textTokens in data[label]]
-        return data
         

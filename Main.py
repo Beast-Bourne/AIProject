@@ -5,12 +5,14 @@ import pandas as pd
 import tensorflow as tf
 import torch
 import tiktoken as tik
+from torch.utils.data import DataLoader
 
 # My class imports
 import GPTDataLoaderClass
 import GPTModelClass as GPT
 from ModelTrainingClass import ModelTrainer
 from TrainingDataPrepClass import TrainingDataPreper
+from NewDataLoaderClass import CustomDataset
 
 ######################################################### Initialisation of needed parameters and objects
 torch.manual_seed(123)
@@ -30,6 +32,7 @@ optimiser = torch.optim.AdamW(model.parameters(), lr=0.0004, weight_decay=0.1) #
 
 train = pd.read_csv('./Data/CustomerServiceDataSet.csv') # read in the dataset
 
+dataPreper = TrainingDataPreper()
 
 ######################################################### Data Preparation and DataLoader Creation
 texter = ""
@@ -49,6 +52,16 @@ validationData = texter[splitIdx:]
 
 trainDataloader = GPTDataLoaderClass.CreateDataLoader(trainData, batchSize=2, maxLength=256, stride=256, dropLast=True, shuffleData=True)
 valDataLoader = GPTDataLoaderClass.CreateDataLoader(validationData, batchSize=2, maxLength=256, stride=256, dropLast=False, shuffleData=False)
+
+print("Done old data loader stuff")
+
+trainDataSet = CustomDataset('./Data/ProcessedData/TrainData.csv', tokeniser)
+trainLoader = DataLoader(trainDataSet, batch_size=8, shuffle=True, drop_last=True, num_workers=0)
+for input_batch in trainLoader:
+    pass
+
+print(trainDataSet.maxLength)
+print("input dims: ", input_batch.shape)
 
 
 ######################################################### Training the Model and Plotting Losses
@@ -88,7 +101,3 @@ valDataLoader = GPTDataLoaderClass.CreateDataLoader(validationData, batchSize=2,
 
 #print(train["intent"].value_counts())
 #print(tokeniser.decode([50256]))
-
-dataPreper = TrainingDataPreper(tokeniser)
-print(dataPreper.trainData.head())
-print(dataPreper.trainData["instruction"][0])
