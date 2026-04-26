@@ -33,6 +33,13 @@ class TrainingDataPreper:
         shuffledData = dataSet.sample(frac=1, random_state=self.randSeed).reset_index(drop=True)
         shuffledData = self.TokeniseData(shuffledData, tokeniser)
 
+        # truncate all instruction texts to 32 tokens then pad all shorter than that to 32 tokens with the 'end of text' special token (50256 in the GPT-2 tokeniser)
+        # max found in the random 500 sample of 'cancel_order' intent was 14 tokens, so 32 should be sufficient to capture the full instruction text
+        shuffledData = self.TruncateAndPadData(shuffledData, "instruction", maxLength=32)
+
+        # truncate all response texts to 512 tokens then pad all shorter than that to 512 tokens with the 'end of text' special token (50256 in the GPT-2 tokeniser)
+        # max found in the random 500 sample of 'cancel_order' intent was 363 tokens, so 512 should be sufficient to capture the full response text
+        shuffledData = self.TruncateAndPadData(shuffledData, "response", maxLength=512)
 
         trainEnd = int(len(shuffledData) * trainRatio)
         validEnd = trainEnd + int(len(shuffledData) * validRatio)
@@ -57,5 +64,10 @@ class TrainingDataPreper:
             data["instruction"][i] = tokeniser.encode(data["instruction"][i])
             data["response"][i] = tokeniser.encode(data["response"][i])
 
+        return data
+    
+    def TruncateAndPadData(self, data, label, maxLength, padToken=50256):
+        data[label] = [textTokens[:maxLength] for textTokens in data[label]]
+        data[label] = [textTokens + [padToken] * (maxLength - len(textTokens)) for textTokens in data[label]]
         return data
         
