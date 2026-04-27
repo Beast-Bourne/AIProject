@@ -6,6 +6,7 @@ import tensorflow as tf
 import torch
 import tiktoken as tik
 from torch.utils.data import DataLoader
+import time
 
 # My class imports
 import GPTDataLoaderClass
@@ -40,7 +41,7 @@ for param in model.transformerBlocks.parameters():
 for param in model.finalNorm.parameters():
     param.requires_grad = True
 
-optimiser = torch.optim.AdamW(model.parameters(), lr=0.0004, weight_decay=0.1) # AdamW optimiser from PyTorch with a learning rate of 0.0004 and weight decay of 0.1
+optimiser = torch.optim.AdamW(model.parameters(), lr=5e-5, weight_decay=0.1) # AdamW optimiser from PyTorch with a learning rate of 0.0004 and weight decay of 0.1
 
 
 
@@ -111,33 +112,13 @@ for input_batch in validLoader:
 
 ######################################################### Testing things
 
-def CalcAccuracyLoader(dataLoader, model, numBatches=None):
-    model.eval()
-    correctPreds, numPreds = 0, 0
+startTime = time.time()
 
-    if numBatches is None:
-        numBatches = len(dataLoader)
-    else:
-        numBatches = min(numBatches, len(dataLoader))
+numEpochs = 5
+trainLosses, valLosses, trainAccs, valAccs, examplesSeen = Trainer.TrainModel(
+    model, trainLoader, validLoader, optimiser, numEpochs, 
+    evalFreq=50, evalIter=5, startContext="I need to cancel", tokeniser=tokeniser)
 
-    for i, (inputBatch, targetBatch) in enumerate(dataLoader):
-        if i < numBatches:
-            with torch.no_grad():
-                logits = model(inputBatch)[:, -1, :]
-            predictions = torch.argmax(logits, dim=-1)
-
-            numPreds += predictions.shape[0]
-            correctPreds += (predictions == targetBatch).sum().item()
-        else:
-            break
-    
-    return correctPreds / numPreds
-
-trainAccuracy = CalcAccuracyLoader(trainLoader, model, numBatches=10)
-print(f"Train Accuracy: {trainAccuracy:.3f}")
-
-trainLoss = Trainer.CalcLossLoader(trainLoader, model, numBatches=10)
-print(f"Train Loss: {trainLoss:.3f}")
-
-validAccuracy = CalcAccuracyLoader(validLoader, model, numBatches=10)
-print(f"Validation Accuracy: {validAccuracy:.3f}")
+endTime = time.time()
+executetime = (endTime - startTime)/60
+print(f"Done Training, execution time: {executetime:.2f} minutes")

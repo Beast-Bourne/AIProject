@@ -35,7 +35,7 @@ class TextGeneration:
                 nextToken = torch.argmax(logits, dim=-1, keepdim=True)
 
             # end of sequence token tells the model when to stop generating text
-            if nextToken == eosTokenId:
+            if nextToken.item() == eosTokenId:
                 break
 
             inputTokens = torch.cat((inputTokens, nextToken), dim=1)
@@ -49,7 +49,7 @@ class TextGeneration:
         encoded = self.TextToTokenIds(startContext, tokeniser)
 
         with torch.no_grad():
-            generatedIds = self.GenerateTokensForContext(model, encoded, 50, contextSize)
+            generatedIds = self.GenerateTokensForContext(model, encoded, 50, contextSize, temperature=0.8, eosTokenId=50256)
         
         decodedText = self.TokenIdsToText(generatedIds, tokeniser)
         print(f"Sample Generated Text:\n {decodedText}")
