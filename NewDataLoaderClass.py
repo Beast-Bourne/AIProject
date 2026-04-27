@@ -18,6 +18,10 @@ class CustomDataset(Dataset):
 
         # pad the encoded texts with the 'end of text' token to ensure they all have the same length
         self.encodedTexts = [encodedText + [padToken] * (self.maxLength - len(encodedText)) for encodedText in self.encodedTexts]
+
+        # map the intent labels to integers (0 for cancel_order and 1 for place_order)
+        mapDict = {"cancel_order": 0, "place_order": 1}
+        self.data["intent"] = self.data["intent"].map(mapDict)
         
 
     def __len__(self):
@@ -26,5 +30,5 @@ class CustomDataset(Dataset):
     # this could be improved by adding a return for the intent of the instruction
     def __getitem__(self, idx):
         encoded = self.encodedTexts[idx]
-        #label = self.data.iloc[idx]["intent"]
-        return torch.tensor(encoded, dtype=torch.long)
+        label = self.data.iloc[idx]["intent"]
+        return (torch.tensor(encoded, dtype=torch.long), torch.tensor(label, dtype=torch.long))

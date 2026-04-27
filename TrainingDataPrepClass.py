@@ -2,7 +2,7 @@ import pandas as pd
 import os
 
 class TrainingDataPreper:
-    def __init__(self, numSamples=500, randSeed=123):
+    def __init__(self, numSamples=600, randSeed=123):
         self.randSeed = randSeed
         self.numSamples = numSamples
         self.rawData = pd.read_csv('./Data/CustomerServiceDataSet.csv')
@@ -18,7 +18,7 @@ class TrainingDataPreper:
         
         # otherwise split the data and save the splits to files for future use
         else:
-            self.trainData, self.validData, self.testData = self.SplitAndSaveDataFromIntent("cancel_order", 0.7, 0.1)
+            self.trainData, self.validData, self.testData = self.SplitAndSaveDataFromIntent(0.8, 0.1)
             os.makedirs('./Data/ProcessedData', exist_ok=True)
             self.trainData.to_csv('./Data/ProcessedData/TrainData.csv', index=None)
             self.validData.to_csv('./Data/ProcessedData/ValidData.csv', index=None)
@@ -27,8 +27,11 @@ class TrainingDataPreper:
 
     # this function takes a random sample of data from the dataset for the given intent
     # it shuffles and splits the data into training, validation and test sets
-    def SplitAndSaveDataFromIntent(self, Intent, trainRatio, validRatio):
-        dataSet = self.rawData[self.rawData["intent"] == Intent].sample(self.numSamples, random_state=self.randSeed)
+    def SplitAndSaveDataFromIntent(self, trainRatio, validRatio):
+        sampleNum = int(self.numSamples/2)
+        dataSet1 = self.rawData[self.rawData["intent"] == "cancel_order"].sample(sampleNum, random_state=self.randSeed)
+        dataSet2 = self.rawData[self.rawData["intent"] == "place_order"].sample(sampleNum, random_state=self.randSeed)
+        dataSet = pd.concat([dataSet1, dataSet2], ignore_index=True)
 
         shuffledData = dataSet.sample(frac=1, random_state=self.randSeed).reset_index(drop=True)
 

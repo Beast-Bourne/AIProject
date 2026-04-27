@@ -7,8 +7,8 @@ class ModelTrainer:
 
     # Calculates the cross-entropy loss for a batch of input and target data using the provided model
     def CalcLossBatch(self, inputBatch, targetBatch, model):
-        logits = model(inputBatch)
-        loss = torch.nn.functional.cross_entropy(logits.flatten(0, 1), targetBatch.flatten())
+        logits = model(inputBatch)[:, -1, :]
+        loss = torch.nn.functional.cross_entropy(logits, targetBatch.flatten())
         return loss
 
     # Calculates the average loss over a data loader by iterating through batches and using the CalcLossBatch method, with an option to limit the number of batches evaluated
