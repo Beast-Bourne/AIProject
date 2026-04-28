@@ -43,15 +43,17 @@ class InstructionTextGeneration:
         return inputTokens
     
     # Generates a sample of text based on the provided model, tokeniser, and starting context, and prints the generated text
-    def GenerateAndPrintSample(self, model, tokeniser, instructionText):
+    def GenerateAndPrintSample(self, model, tokeniser, instructionText, printText=True):
         model.eval()
         contextSize = model.positionEmbeddings.weight.shape[0]
         encoded = self.TextToTokenIds(instructionText, tokeniser)
 
         with torch.no_grad():
-            generatedIds = self.GenerateTokensForContext(model, encoded, 50, contextSize, temperature=0.8, eosTokenId=50256)
+            generatedIds = self.GenerateTokensForContext(model, encoded, 100, contextSize, temperature=0.8, eosTokenId=50256)
         
         decodedText = self.TokenIdsToText(generatedIds, tokeniser)
         decodedText = decodedText[len(instructionText):].replace("### Response:", "").strip()
-        print(decodedText)
+        if (printText): print(decodedText)
+        
         model.train()
+        return decodedText

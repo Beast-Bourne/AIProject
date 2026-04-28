@@ -1,5 +1,13 @@
 import torch
+import pandas as pd
 from InstructionTextGeneratorClass import InstructionTextGeneration
+
+def FormatInstructionInput(input):
+    instructionText = (f"Below is an instruction that describes a task."
+                       f"Write a response that appropriately completes the request."
+                       f"\n\n### Instruction:\n{input}"
+                       f"\n\n### Response:")
+    return instructionText
 
 class InstructionModelTrainer:
     def __init__(self):
@@ -44,9 +52,14 @@ class InstructionModelTrainer:
     # Trains the model for a specified number of epochs, iterating through the training data loader and updating the model's parameters using the provided optimiser. 
     # The method also evaluates the model's performance at regular intervals defined by evalFreq, and tracks the training and validation losses and the number of tokens seen during training.\
     # Additionally, it generates and prints a sample of text after each epoch using the TextGeneration class.
-    def TrainModel(self, model, trainLoader, valLoader, optimiser, numEpochs, evalFreq, evalIter, startContext, tokeniser):
+    def TrainModel(self, model, trainLoader, valLoader, optimiser, numEpochs, evalFreq, evalIter, testText1, testText2, tokeniser):
         trainLosses, valLosses, trackTokensSeen = [], [], []
         tokensSeen, globalStep = 0 , -1
+
+        testInput1 = FormatInstructionInput(testText1)
+        testInput2 = FormatInstructionInput(testText2)
+
+        epochData = []
 
         # main training loop
         for epoch in range(numEpochs):
@@ -70,7 +83,19 @@ class InstructionModelTrainer:
                     print(f"Epoch {epoch+1}, Step {globalStep:06d}, Train Loss: {trainLoss:.3f}, Val Loss: {valLoss:.3f}")
             
             # generate and print a sample of text after each epoch using the TextGeneration class
-            print(startContext)
-            self.textGen.GenerateAndPrintSample(model, tokeniser, startContext)
+            #print(testInput1)
+            modelOutput1 = self.textGen.GenerateAndPrintSample(model, tokeniser, testInput1, printText=False)
 
-        return trainLosses, valLosses, trackTokensSeen
+            #print("\n\n", testInput2)
+            modelOutput2 = self.textGen.GenerateAndPrintSample(model, tokeniser, testInput2, printText=False)
+
+            epochData.append({
+                "Instruction1": testText1,
+                "ModelOutput1": modelOutput1,
+                "Instruction2": testText2,
+                "ModelOutput2": modelOutput2,
+            })
+
+        outputDataFrame = pd.DataFrame(epochData, columns=["Instruction1", "ModelOutput1", "Instruction2", "ModelOutput2"])
+
+        return trainLosses, valLosses, trackTokensSeen, outputDataFrame

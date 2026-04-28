@@ -183,3 +183,5 @@ GPTModel.pth
 Data/ProcessedData/TestData.csv
 Data/ProcessedData/TrainData.csv
 Data/ProcessedData/ValidData.csv
+Models/GPTModel300Samples1Epochs.pth
+Data/ProcessedData/ModelResponses300Samples1Epochs.csv
