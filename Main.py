@@ -7,6 +7,8 @@ import torch
 import tiktoken as tik
 from torch.utils.data import DataLoader
 import time
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 
 # My class imports
 import GPTDataLoaderClass
@@ -16,7 +18,32 @@ from TrainingDataPrepClass import TrainingDataPreper
 from ClassifierDataLoaderClass import ClassificationDataset
 from TextGenerationClass import TextGeneration
 from InstructionTrainerClass import InstructionModelTrainer
-from InstructionDatasetLoaderClass import InstructionDataset
+from InstructionDatasetLoaderClass import GetInstructionDataLoader
+from InstructionTextGeneratorClass import InstructionTextGeneration
+
+def FormatInstructionInput(input):
+    instructionText = (f"Below is an instruction that describes a task."
+                       f"Write a response that appropriately completes the request."
+                       f"\n\n### Instruction:\n{input}"
+                       f"\n\n### Response:")
+    return instructionText
+
+def PlotLosses(epochsSeen, tokensSeen, trainLosses, valLosses):
+    fig, ax1 = plt.subplots(figsize=(5,3))
+
+    ax1.plot(epochsSeen, trainLosses, label='Training Loss', color='blue')
+    ax1.plot(epochsSeen, valLosses, linestyle="-.", label='Validation Loss', color='orange')
+    ax1.set_xlabel('Epochs')
+    ax1.set_ylabel('Loss')
+    ax1.legend(loc = "upper right")
+    ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+    ax2 = ax1.twiny()
+    ax2.plot(tokensSeen, trainLosses, alpha=0)
+    ax2.set_xlabel("Tokens Seen")
+
+    fig.tight_layout()
+    plt.show()
 
 ######################################################### Initialisation of needed parameters and objects
 torch.manual_seed(123)
@@ -28,17 +55,21 @@ dataPreper = TrainingDataPreper() # my data class which reads in the dataset fil
 ######################################################### Model and Optimiser Initialization
 model = GPT.GPTModel(GPT.GPT_CONFIG) # initialise the GPT model using the configuration defined in my GPTModelClass.py file
 
+######################################################### Model Modification for Classification Training only
+# # set the number of output dimensions of the model to 2 (same as the number of classifiable intents in the training data)
+# numClasses = 2
+# model.outHead = torch.nn.Linear(GPT.GPT_CONFIG["embeddingDim"], numClasses)
+
+######################################################### Model Modification for Instruction Training only
+model.outHead = torch.nn.Linear(GPT.GPT_CONFIG["embeddingDim"], GPT.GPT_CONFIG["vocabSize"])
+
+######################################################### model loading from save file
 # load the model's trained weights if they exist in the given directory
 if os.path.exists("./GPTModel.pth"):
     model.load_state_dict(torch.load("./GPTModel.pth"))
     print("Loaded model weights from GPTModel.pth")
 else:
     print("No saved model weights found, starting with a new model")
-
-######################################################### Model Modification for Classification Training only
-# # set the number of output dimensions of the model to 2 (same as the number of classifiable intents in the training data)
-# numClasses = 2
-# model.outHead = torch.nn.Linear(GPT.GPT_CONFIG["embeddingDim"], numClasses)
 
 ######################################################### model modification for fine-tuning
 for param in model.transformerBlocks.parameters():
@@ -60,48 +91,9 @@ optimiser = torch.optim.AdamW(model.parameters(), lr=5e-5, weight_decay=0.1) # A
 #     pass
 
 ######################################################### Instruction DataLoader Creation
-trainDataSet = InstructionDataset('./Data/ProcessedData/TrainData.csv', tokeniser)
-trainLoader = DataLoader(trainDataSet, batch_size=8, shuffle=True, drop_last=True, num_workers=0)
-for input_batch in trainLoader:
-    pass
-
-validDataSet = InstructionDataset('./Data/ProcessedData/ValidData.csv', tokeniser)
-validLoader = DataLoader(validDataSet, batch_size=8, shuffle=False, drop_last=False, num_workers=0)
-for input_batch in validLoader:
-    pass
-
-######################################################### Old training code
-# epochNum = 10
-
-# trainLosses, valLosses, seenTokenTracker = Trainer.TrainModel(model, trainDataloader, valDataLoader, optimiser,
-#                                                           numEpochs=epochNum, evalFreq=5, evalIter=5, 
-#                                                           startContext="I need to cancel", tokeniser=tokeniser)
-
-# def PlotLosses(epochsSeen, tokensSeen, trainLosses, valLosses):
-#     fig, ax1 = plt.subplots(figsize=(5,3))
-
-#     ax1.plot(epochsSeen, trainLosses, label='Training Loss', color='blue')
-#     ax1.plot(epochsSeen, valLosses, linestyle="-.", label='Validation Loss', color='orange')
-#     ax1.set_xlabel('Epochs')
-#     ax1.set_ylabel('Loss')
-#     ax1.legend(loc = "upper right")
-#     ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
-
-#     ax2 = ax1.twiny()
-#     ax2.plot(tokensSeen, trainLosses, alpha=0)
-#     ax2.set_xlabel("Tokens Seen")
-
-#     fig.tight_layout()
-#     plt.show()
-
-# epochsTensor = torch.linspace(0, epochNum, len(trainLosses))
-# print("Done Training")
-
-# PlotLosses(epochsTensor, seenTokenTracker, trainLosses, valLosses)
-
-# torch.save(model.state_dict(), "./GPTModel.pth")
-# print("Done and saved training")
-
+trainLoader = GetInstructionDataLoader('./Data/ProcessedData/TrainData.csv', tokeniser, batchSize=8, shuffle=True, dropLast=True, numWorkers=0)
+validLoader = GetInstructionDataLoader('./Data/ProcessedData/ValidData.csv', tokeniser, batchSize=8, shuffle=False, dropLast=False, numWorkers=0)
+testLoader = GetInstructionDataLoader('./Data/ProcessedData/TestData.csv', tokeniser, batchSize=8, shuffle=False, dropLast=False, numWorkers=0)
 
 ######################################################### Classification training
 # startTime = time.time()
@@ -117,3 +109,21 @@ for input_batch in validLoader:
 
 ######################################################### Instruction training
 startTime = time.time()
+
+inputText = FormatInstructionInput("I need to cancel my order")
+
+numOfEpochs = 1
+trainLosses, valLosses, tokensSeen = instructionTrainer.TrainModel(
+    model, trainLoader, validLoader, optimiser, 
+    numEpochs=numOfEpochs, evalFreq=5, evalIter=5, 
+    startContext=inputText, tokeniser=tokeniser)
+
+endTime = time.time()
+executetime = (endTime - startTime)/60
+print(f"Done Training, execution time: {executetime:.2f} minutes")
+
+torch.save(model.state_dict(), "./GPTModel.pth")
+print("Done and saved training")
+
+epochTensors = torch.linspace(0, numOfEpochs, len(trainLosses))
+PlotLosses(epochTensors, tokensSeen, trainLosses, valLosses)

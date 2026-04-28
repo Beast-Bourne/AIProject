@@ -18,7 +18,7 @@ class TrainingDataPreper:
         
         # otherwise split the data and save the splits to files for future use
         else:
-            self.trainData, self.validData, self.testData = self.SplitAndSaveDataFromIntent(0.8, 0.1)
+            self.trainData, self.validData, self.testData = self.SplitAndSaveDataFromIntent(0.85, 0.1)
             os.makedirs('./Data/ProcessedData', exist_ok=True)
             self.trainData.to_csv('./Data/ProcessedData/TrainData.csv', index=None)
             self.validData.to_csv('./Data/ProcessedData/ValidData.csv', index=None)

@@ -1,14 +1,14 @@
 import torch
-from TextGenerationClass import TextGeneration
+from InstructionTextGeneratorClass import InstructionTextGeneration
 
 class InstructionModelTrainer:
     def __init__(self):
-        self.textGen = TextGeneration()
+        self.textGen = InstructionTextGeneration()
 
     # Calculates the cross-entropy loss for a batch of input and target data using the provided model
     def CalcLossBatch(self, inputBatch, targetBatch, model):
-        logits = model(inputBatch)[:, -1, :]
-        loss = torch.nn.functional.cross_entropy(logits, targetBatch.flatten())
+        logits = model(inputBatch)
+        loss = torch.nn.functional.cross_entropy(logits.flatten(0,1), targetBatch.flatten())
         return loss
 
     # Calculates the average loss over a data loader by iterating through batches and using the CalcLossBatch method, with an option to limit the number of batches evaluated
@@ -40,35 +40,13 @@ class InstructionModelTrainer:
             valLoss = self.CalcLossLoader(valLoader, model, numBatches=evalIter)
         model.train()
         return trainLoss, valLoss
-    
-    def CalcAccuracyLoader(self, dataLoader, model, numBatches=None):
-        model.eval()
-        correctPreds, numPreds = 0, 0
-
-        if numBatches is None:
-            numBatches = len(dataLoader)
-        else:
-            numBatches = min(numBatches, len(dataLoader))
-
-        for i, (inputBatch, targetBatch) in enumerate(dataLoader):
-            if i < numBatches:
-                with torch.no_grad():
-                    logits = model(inputBatch)[:, -1, :]
-                predictions = torch.argmax(logits, dim=-1)
-
-                numPreds += predictions.shape[0]
-                correctPreds += (predictions == targetBatch).sum().item()
-            else:
-                break
-        
-        return correctPreds / numPreds
 
     # Trains the model for a specified number of epochs, iterating through the training data loader and updating the model's parameters using the provided optimiser. 
     # The method also evaluates the model's performance at regular intervals defined by evalFreq, and tracks the training and validation losses and the number of tokens seen during training.\
     # Additionally, it generates and prints a sample of text after each epoch using the TextGeneration class.
     def TrainModel(self, model, trainLoader, valLoader, optimiser, numEpochs, evalFreq, evalIter, startContext, tokeniser):
-        trainLosses, valLosses, trainAccur, valAccur = [], [], [], []
-        seenExamples, globalStep = 0 , -1
+        trainLosses, valLosses, trackTokensSeen = [], [], []
+        tokensSeen, globalStep = 0 , -1
 
         # main training loop
         for epoch in range(numEpochs):
@@ -80,7 +58,7 @@ class InstructionModelTrainer:
                 loss = self.CalcLossBatch(inputBatch, targetBatch, model)
                 loss.backward() # calculate loss gradient
                 optimiser.step() # update model weights based on loss gradient
-                seenExamples += inputBatch.shape[0] # track number of examples seen during training
+                tokensSeen += inputBatch.numel() # track the number of tokens seen during training
                 globalStep += 1
 
                 # evaluate model performance at regular intervals defined by evalFreq
@@ -88,16 +66,11 @@ class InstructionModelTrainer:
                     trainLoss, valLoss = self.EvaluateModel(model, trainLoader, valLoader, evalIter)
                     trainLosses.append(trainLoss)
                     valLosses.append(valLoss)
+                    trackTokensSeen.append(tokensSeen)
                     print(f"Epoch {epoch+1}, Step {globalStep:06d}, Train Loss: {trainLoss:.3f}, Val Loss: {valLoss:.3f}")
             
             # generate and print a sample of text after each epoch using the TextGeneration class
+            print(startContext)
             self.textGen.GenerateAndPrintSample(model, tokeniser, startContext)
 
-            # Calculate accuracy after each epoch
-            tAccuracy = self.CalcAccuracyLoader(trainLoader, model, numBatches=evalIter)
-            vAccuracy = self.CalcAccuracyLoader(valLoader, model, numBatches=evalIter)
-            print(f"Epoch {epoch+1}, Train Accuracy: {tAccuracy:.3f}, Val Accuracy: {vAccuracy:.3f}")
-            trainAccur.append(tAccuracy)
-            valAccur.append(vAccuracy)
-
-        return trainLosses, valLosses, trainAccur, valAccur, seenExamples
+        return trainLosses, valLosses, trackTokensSeen

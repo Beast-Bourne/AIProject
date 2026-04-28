@@ -4,7 +4,7 @@ import SelfAttentionClass as attention
 
 GPT_CONFIG = {
     "vocabSize": 50257, # this is the number of tokens in the GPT-2 tokenizer
-    "contextLength": 256, # this is the maximum number of tokens the model can take as input
+    "contextLength": 1024, # this is the maximum number of tokens the model can take as input
     "embeddingDim": 768, # this is the number of dimensions in the token embeddings (defined by the small GPT-2 model being used)
     "numHeads": 12,
     "numLayers": 12, # this number is how many times the transformer block is repeated
