@@ -11,15 +11,18 @@ import time
 # My class imports
 import GPTDataLoaderClass
 import GPTModelClass as GPT
-from ModelTrainingClass import ModelTrainer
+from ClassifierTrainingClass import ModelTrainer
 from TrainingDataPrepClass import TrainingDataPreper
-from NewDataLoaderClass import CustomDataset
+from ClassifierDataLoaderClass import ClassificationDataset
 from TextGenerationClass import TextGeneration
+from InstructionTrainerClass import InstructionModelTrainer
+from InstructionDatasetLoaderClass import InstructionDataset
 
 ######################################################### Initialisation of needed parameters and objects
 torch.manual_seed(123)
 tokeniser = tik.get_encoding("gpt2") # the tokeniser from the tiktoken library
-Trainer = ModelTrainer() # my model training class
+ClassificationTrainer = ModelTrainer() # my classification training class
+instructionTrainer = InstructionModelTrainer() # my instruction training class
 dataPreper = TrainingDataPreper() # my data class which reads in the dataset files
 
 ######################################################### Model and Optimiser Initialization
@@ -32,52 +35,42 @@ if os.path.exists("./GPTModel.pth"):
 else:
     print("No saved model weights found, starting with a new model")
 
-# set the number of output dimensions of the model to 2 (same as the number of classifiable intents)
-numClasses = 2
-model.outHead = torch.nn.Linear(GPT.GPT_CONFIG["embeddingDim"], numClasses)
+######################################################### Model Modification for Classification Training only
+# # set the number of output dimensions of the model to 2 (same as the number of classifiable intents in the training data)
+# numClasses = 2
+# model.outHead = torch.nn.Linear(GPT.GPT_CONFIG["embeddingDim"], numClasses)
 
+######################################################### model modification for fine-tuning
 for param in model.transformerBlocks.parameters():
     param.requires_grad = True
 for param in model.finalNorm.parameters():
     param.requires_grad = True
 
-optimiser = torch.optim.AdamW(model.parameters(), lr=5e-5, weight_decay=0.1) # AdamW optimiser from PyTorch with a learning rate of 0.0004 and weight decay of 0.1
+optimiser = torch.optim.AdamW(model.parameters(), lr=5e-5, weight_decay=0.1) # AdamW optimiser from PyTorch
 
+######################################################### Classification DataLoader Creation
+# trainDataSet = ClassificationDataset('./Data/ProcessedData/TrainData.csv', tokeniser)
+# trainLoader = DataLoader(trainDataSet, batch_size=8, shuffle=True, drop_last=True, num_workers=0)
+# for input_batch in trainLoader:
+#     pass
 
+# validDataSet = ClassificationDataset('./Data/ProcessedData/ValidData.csv', tokeniser)
+# validLoader = DataLoader(validDataSet, batch_size=8, shuffle=False, drop_last=False, num_workers=0)
+# for input_batch in validLoader:
+#     pass
 
-train = pd.read_csv('./Data/CustomerServiceDataSet.csv') # read in the dataset
-
-######################################################### Data Preparation and DataLoader Creation
-texter = ""
-numToGet = len(train['instruction'])-1
-
-for i in range (numToGet):
-    if train["intent"][i] == "cancel_order":
-        texter += (train['instruction'][i] + " ")
-
-charTotal = len(texter) # 1286828 for full dataset
-tokenTotal = len(tokeniser.encode(texter)) # 271388 for full dataset
-
-trainRatio = 0.9
-splitIdx = int(trainRatio * charTotal)
-trainData = texter[:splitIdx]
-validationData = texter[splitIdx:]
-
-trainDataloader = GPTDataLoaderClass.CreateDataLoader(trainData, batchSize=2, maxLength=256, stride=256, dropLast=True, shuffleData=True)
-valDataLoader = GPTDataLoaderClass.CreateDataLoader(validationData, batchSize=2, maxLength=256, stride=256, dropLast=False, shuffleData=False)
-
-trainDataSet = CustomDataset('./Data/ProcessedData/TrainData.csv', tokeniser)
+######################################################### Instruction DataLoader Creation
+trainDataSet = InstructionDataset('./Data/ProcessedData/TrainData.csv', tokeniser)
 trainLoader = DataLoader(trainDataSet, batch_size=8, shuffle=True, drop_last=True, num_workers=0)
 for input_batch in trainLoader:
     pass
 
-validDataSet = CustomDataset('./Data/ProcessedData/ValidData.csv', tokeniser)
+validDataSet = InstructionDataset('./Data/ProcessedData/ValidData.csv', tokeniser)
 validLoader = DataLoader(validDataSet, batch_size=8, shuffle=False, drop_last=False, num_workers=0)
 for input_batch in validLoader:
     pass
 
-
-######################################################### Training the Model and Plotting Losses
+######################################################### Old training code
 # epochNum = 10
 
 # trainLosses, valLosses, seenTokenTracker = Trainer.TrainModel(model, trainDataloader, valDataLoader, optimiser,
@@ -110,15 +103,17 @@ for input_batch in validLoader:
 # print("Done and saved training")
 
 
-######################################################### Testing things
+######################################################### Classification training
+# startTime = time.time()
 
+# numEpochs = 5
+# trainLosses, valLosses, trainAccs, valAccs, examplesSeen = ClassificationTrainer.TrainModel(
+#     model, trainLoader, validLoader, optimiser, numEpochs, 
+#     evalFreq=50, evalIter=5, startContext="I need to cancel", tokeniser=tokeniser)
+
+# endTime = time.time()
+# executetime = (endTime - startTime)/60
+# print(f"Done Training, execution time: {executetime:.2f} minutes")
+
+######################################################### Instruction training
 startTime = time.time()
-
-numEpochs = 5
-trainLosses, valLosses, trainAccs, valAccs, examplesSeen = Trainer.TrainModel(
-    model, trainLoader, validLoader, optimiser, numEpochs, 
-    evalFreq=50, evalIter=5, startContext="I need to cancel", tokeniser=tokeniser)
-
-endTime = time.time()
-executetime = (endTime - startTime)/60
-print(f"Done Training, execution time: {executetime:.2f} minutes")

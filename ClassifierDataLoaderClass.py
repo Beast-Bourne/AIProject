@@ -2,7 +2,7 @@ import torch
 import pandas as pd
 from torch.utils.data import Dataset
 
-class CustomDataset(Dataset):
+class ClassificationDataset(Dataset):
     def __init__(self, csvFilePath, tokeniser, maxLength=None, padToken = 50256):
         self.data = pd.read_csv(csvFilePath)
 
