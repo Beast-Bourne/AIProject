@@ -21,6 +21,7 @@ from InstructionTrainerClass import InstructionModelTrainer
 from InstructionDatasetLoaderClass import GetInstructionDataLoader
 from InstructionTextGeneratorClass import InstructionTextGeneration
 
+# this function uses matplotlib to graph the training and validation loss against the number of epochs
 def PlotLosses(epochsSeen, tokensSeen, trainLosses, valLosses):
     fig, ax1 = plt.subplots(figsize=(5,3))
 
@@ -39,7 +40,7 @@ def PlotLosses(epochsSeen, tokensSeen, trainLosses, valLosses):
     plt.show()
 
 ######################################################### Initialisation of needed parameters and objects
-ModelInfo = "500Samples50Epochs"
+ModelInfo = "500Samples50Epochs" # This is the file name for the model.pth file and the Results.csv file that will be read from and written to
 
 torch.manual_seed(123)
 tokeniser = tik.get_encoding("gpt2") # the tokeniser from the tiktoken library
@@ -108,6 +109,7 @@ testLoader = GetInstructionDataLoader('./Data/TestData.csv', tokeniser, batchSiz
 ######################################################### Instruction training
 startTime = time.time()
 
+# test instructions to evaluate the model's responses during training
 inputText1 = "I need to cancel my order"
 inputText2 = "I want to place an order"
 
@@ -124,6 +126,7 @@ print(f"\n\nDone Training, execution time: {executetime:.2f} minutes")
 torch.save(model.state_dict(), modelPath)
 print("\nDone and saved training")
 
+os.makedirs('./Data/ProcessedData', exist_ok=True)
 modelDataPath = "./Data/ProcessedData/ModelResponses" + ModelInfo + ".csv"
 modelOutputData.to_csv(modelDataPath, index=None)
 
