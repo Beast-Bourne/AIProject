@@ -49,7 +49,7 @@ class InstructionTextGeneration:
         encoded = self.TextToTokenIds(instructionText, tokeniser)
 
         with torch.no_grad():
-            generatedIds = self.GenerateTokensForContext(model, encoded, 100, contextSize, temperature=0.8, eosTokenId=50256)
+            generatedIds = self.GenerateTokensForContext(model, encoded, 500, contextSize, temperature=0.8, eosTokenId=50256)
         
         decodedText = self.TokenIdsToText(generatedIds, tokeniser)
         decodedText = decodedText[len(instructionText):].replace("### Response:", "").strip()
