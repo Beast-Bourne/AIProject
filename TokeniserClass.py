@@ -1,5 +1,8 @@
 import re
         
+# NOTE: this class is deprecated and is not used in the final version of the project.
+# It was used to undertand how to a vocab dataset could be generated from the training data, and how to use that vocab dataset to tokenise and detokenise text.
+# The final version of the project uses a pre-generated vocab dataset from the GPT-2 model
 class Tokeniser:
     def __init__(self, dataset):
         

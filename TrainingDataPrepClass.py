@@ -7,22 +7,24 @@ class TrainingDataPreper:
         self.numSamples = numSamples
         self.rawData = pd.read_csv('./Data/CustomerServiceDataSet.csv')
 
+        trainDataPath = "./Data/TrainData.csv"
+        validDataPath = "./Data/ValidData.csv"
+        testDataPath = "./Data/TestData.csv"
+
         # if the processed data files already exist then just read the data from them
-        if os.path.exists("./Data/ProcessedData/TrainData.csv") and \
-           os.path.exists("./Data/ProcessedData/ValidData.csv") and \
-           os.path.exists("./Data/ProcessedData/TestData.csv"):
-            self.trainData, self.validData, self.testData = self.LoadDataFromFile("./Data/ProcessedData/TrainData.csv", 
-                                                                  "./Data/ProcessedData/ValidData.csv", 
-                                                                  "./Data/ProcessedData/TestData.csv")
+        if os.path.exists(trainDataPath) and \
+           os.path.exists(validDataPath) and \
+           os.path.exists(testDataPath):
+            self.trainData, self.validData, self.testData = self.LoadDataFromFile(trainDataPath, validDataPath, testDataPath)
             print("Loaded processed data from files")
         
         # otherwise split the data and save the splits to files for future use
         else:
             self.trainData, self.validData, self.testData = self.SplitAndSaveDataFromIntent(0.85, 0.1)
-            os.makedirs('./Data/ProcessedData', exist_ok=True)
-            self.trainData.to_csv('./Data/ProcessedData/TrainData.csv', index=None)
-            self.validData.to_csv('./Data/ProcessedData/ValidData.csv', index=None)
-            self.testData.to_csv('./Data/ProcessedData/TestData.csv', index=None)
+            os.makedirs('./Data', exist_ok=True)
+            self.trainData.to_csv(trainDataPath, index=None)
+            self.validData.to_csv(validDataPath, index=None)
+            self.testData.to_csv(testDataPath, index=None)
             print("Processed data not found, created new splits and saved to files")
 
     # this function takes a random sample of data from the dataset for the given intent

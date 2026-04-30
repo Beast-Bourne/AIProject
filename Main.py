@@ -39,23 +39,23 @@ def PlotLosses(epochsSeen, tokensSeen, trainLosses, valLosses):
     plt.show()
 
 ######################################################### Initialisation of needed parameters and objects
-ModelInfo = "300Samples1Epochs"
+ModelInfo = "500Samples50Epochs"
 
 torch.manual_seed(123)
 tokeniser = tik.get_encoding("gpt2") # the tokeniser from the tiktoken library
 ClassificationTrainer = ModelTrainer() # my classification training class
 instructionTrainer = InstructionModelTrainer() # my instruction training class
-dataPreper = TrainingDataPreper() # my data class which reads in the dataset files
+dataPreper = TrainingDataPreper(numSamples=1000) # my data class which reads in the dataset files
 
 ######################################################### Model and Optimiser Initialization
 model = GPT.GPTModel(GPT.GPT_CONFIG) # initialise the GPT model using the configuration defined in my GPTModelClass.py file
 
-######################################################### Model Modification for Classification Training only
+######################################################### Classification Training only model modification
 # # set the number of output dimensions of the model to 2 (same as the number of classifiable intents in the training data)
 # numClasses = 2
 # model.outHead = torch.nn.Linear(GPT.GPT_CONFIG["embeddingDim"], numClasses)
 
-######################################################### Model Modification for Instruction Training only
+######################################################### Instruction Training only model modification
 model.outHead = torch.nn.Linear(GPT.GPT_CONFIG["embeddingDim"], GPT.GPT_CONFIG["vocabSize"])
 
 ######################################################### model loading from save file
@@ -89,9 +89,9 @@ optimiser = torch.optim.AdamW(model.parameters(), lr=5e-5, weight_decay=0.1) # A
 #     pass
 
 ######################################################### Instruction DataLoader Creation
-trainLoader = GetInstructionDataLoader('./Data/ProcessedData/TrainData.csv', tokeniser, batchSize=8, shuffle=True, dropLast=True, numWorkers=0)
-validLoader = GetInstructionDataLoader('./Data/ProcessedData/ValidData.csv', tokeniser, batchSize=8, shuffle=False, dropLast=False, numWorkers=0)
-testLoader = GetInstructionDataLoader('./Data/ProcessedData/TestData.csv', tokeniser, batchSize=8, shuffle=False, dropLast=False, numWorkers=0)
+trainLoader = GetInstructionDataLoader('./Data/TrainData.csv', tokeniser, batchSize=8, shuffle=True, dropLast=True, numWorkers=0)
+validLoader = GetInstructionDataLoader('./Data/ValidData.csv', tokeniser, batchSize=8, shuffle=False, dropLast=False, numWorkers=0)
+testLoader = GetInstructionDataLoader('./Data/TestData.csv', tokeniser, batchSize=8, shuffle=False, dropLast=False, numWorkers=0)
 
 ######################################################### Classification training
 # startTime = time.time()
@@ -111,7 +111,7 @@ startTime = time.time()
 inputText1 = "I need to cancel my order"
 inputText2 = "I want to place an order"
 
-numOfEpochs = 1
+numOfEpochs = 50
 trainLosses, valLosses, tokensSeen, modelOutputData = instructionTrainer.TrainModel(
     model, trainLoader, validLoader, optimiser, 
     numEpochs=numOfEpochs, evalFreq=50, evalIter=5, 
